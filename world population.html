@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Población Mundial</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0a0f;--surface:#13131a;--surface2:#1c1c26;
+  --border:rgba(255,255,255,0.08);--text:#f2f2f7;
+  --muted:rgba(242,242,247,0.45);--faint:rgba(242,242,247,0.13);
+  --accent:#a8c8ff;--warm:#f5c98a;--error:#ff6b6b;
+}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;font-weight:300;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+#stars{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none;opacity:0.45}
+.page{position:relative;z-index:1;max-width:760px;margin:0 auto;padding:0 1.5rem 6rem}
+header{padding:5rem 0 3rem;text-align:center}
+.eyebrow{font-size:0.78rem;letter-spacing:0.18em;color:var(--muted);text-transform:uppercase;margin-bottom:1.2rem}
+h1{font-family:'DM Serif Display',serif;font-size:clamp(2.6rem,8vw,4.2rem);font-weight:400;line-height:1.08;letter-spacing:-0.02em;color:var(--text);margin-bottom:1.1rem}
+h1 em{font-style:italic;color:rgba(242,242,247,0.5)}
+.lead{font-size:1rem;color:var(--muted);line-height:1.75;max-width:420px;margin:0 auto}
+.globe-section{display:flex;flex-direction:column;align-items:center;gap:2.2rem;padding:2rem 0}
+#map-wrap{position:relative;width:100%;max-width:680px;border-radius:14px;overflow:hidden;border:1px solid var(--border);background:#0b1c30;height:340px;cursor:grab}
+#map-wrap.panning{cursor:grabbing}
+#map-inner{width:100%;height:100%;overflow:hidden;position:relative}
+#map-svg-el{position:absolute;top:0;left:0;transform-origin:0 0;transition:transform 0.18s cubic-bezier(.4,0,.2,1)}
+#map-svg-el path{transition:fill 0.2s}
+#map-svg-el path:hover{fill:#4a8c3a;opacity:0.85}
+
+/* Tooltip del Mapa */
+.map-tooltip {
+  position: absolute;
+  padding: 0.5rem 0.8rem;
+  background: rgba(19, 19, 26, 0.85);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, -120%);
+  transition: opacity 0.12s ease, transform 0.12s ease;
+  z-index: 100;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+.map-tooltip.show {
+  opacity: 1;
+  transform: translate(-50%, -130%);
+}
+
+.zoom-btns{position:absolute;right:12px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:6px;z-index:10;pointer-events:auto}
+.zoom-btn{width:34px;height:34px;border-radius:8px;background:rgba(10,22,45,0.82);border:1px solid rgba(255,255,255,0.14);color:rgba(242,242,247,0.8);cursor:pointer;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(6px);transition:all 0.15s;padding:0;flex-shrink:0}
+.zoom-btn:hover{background:rgba(40,80,150,0.9);color:#fff;border-color:rgba(168,200,255,0.4)}
+.zoom-btn:focus{outline:2px solid var(--accent);outline-offset:2px}
+.zoom-btn svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round}
+.stats-row{display:flex;gap:3.5rem;justify-content:center;align-items:flex-start}
+.stat-val{font-family:'DM Serif Display',serif;font-size:2.8rem;font-weight:400;color:var(--text);display:block;letter-spacing:-0.02em;line-height:1}
+.stat-label{font-size:0.75rem;letter-spacing:0.12em;color:var(--muted);text-transform:uppercase;margin-top:0.35rem}
+.growth-badge{display:inline-block;font-size:0.72rem;padding:0.18rem 0.55rem;border-radius:20px;background:rgba(168,200,255,0.1);color:var(--accent);margin-top:0.4rem}
+.divider{width:1px;background:var(--border);align-self:stretch;margin-top:0.2rem}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:22px;padding:2.2rem;margin-bottom:1.3rem}
+.card-label{font-size:0.72rem;letter-spacing:0.18em;color:var(--muted);text-transform:uppercase;margin-bottom:1.6rem}
+.year-display{font-family:'DM Serif Display',serif;font-size:clamp(1.8rem,5vw,2.8rem);font-weight:400;color:var(--text);text-align:center;margin-bottom:2rem;letter-spacing:-0.02em}
+.year-display span{color:var(--muted);font-style:italic}
+.slider-wrapper{position:relative;margin-bottom:0.7rem}
+input[type=range]{width:100%;height:2px;background:linear-gradient(to right,var(--accent) var(--pct,0%),var(--surface2) var(--pct,0%));border-radius:2px;outline:none;cursor:pointer;-webkit-appearance:none;appearance:none;position:relative;z-index:1}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,0.6);cursor:pointer;position:relative;z-index:5}
+input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,0.6);cursor:pointer;border:none;position:relative;z-index:5}
+input[type=range]::-moz-range-track{background:transparent;border:none}
+input[type=range]::-moz-range-progress{background:transparent}
+input[type=range]:focus{outline:none}
+input[type=range]:focus::-webkit-slider-thumb{box-shadow:0 2px 8px rgba(0,0,0,0.6),0 0 0 3px rgba(168,200,255,0.3)}
+input[type=range]:focus::-moz-range-thumb{box-shadow:0 2px 8px rgba(0,0,0,0.6),0 0 0 3px rgba(168,200,255,0.3)}
+.marks{display:flex;justify-content:space-between;font-size:0.62rem;color:var(--faint);margin-bottom:2rem}
+.controls{display:flex;gap:0.65rem;justify-content:center;margin-bottom:1.6rem;flex-wrap:wrap}
+button{font-family:'DM Sans',sans-serif;font-size:0.8rem;font-weight:400;letter-spacing:0.04em;padding:0.6rem 1.4rem;border-radius:40px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all 0.2s;z-index:2}
+button:hover{background:var(--surface2);color:var(--text)}
+button:focus{outline:2px solid var(--accent);outline-offset:2px}
+button.primary{background:var(--text);color:var(--bg);border-color:var(--text)}
+button.primary:hover{background:rgba(242,242,247,0.85)}
+.speed-row{display:flex;align-items:center;gap:1rem;font-size:0.78rem;color:var(--muted)}
+.speed-row input{flex:1}
+.event-box{margin-top:1.6rem;padding:1.3rem 1.5rem;background:var(--surface2);border-radius:14px;border-left:2px solid rgba(245,201,138,0.35)}
+.event-year{font-size:0.68rem;letter-spacing:0.12em;color:var(--warm);text-transform:uppercase;margin-bottom:0.45rem;opacity:0.85}
+.event-text{font-size:0.88rem;line-height:1.7;color:rgba(242,242,247,0.65)}
+#chartCanvas{width:100%!important}
+.source-item{font-size:0.84rem;color:var(--muted);padding:0.85rem 0;border-bottom:1px solid var(--border);line-height:1.6}
+.source-item:last-child{border:none}
+.source-item strong{color:rgba(242,242,247,0.78);font-weight:500}
+.form-group{margin-bottom:1.2rem}
+label{display:block;font-size:0.68rem;letter-spacing:0.12em;color:var(--muted);text-transform:uppercase;margin-bottom:0.5rem}
+input[type=text],input[type=email],textarea,select{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:11px;padding:0.7rem 1rem;color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.88rem;font-weight:300;outline:none;transition:border-color 0.2s;-webkit-appearance:none;appearance:none}
+input[type=text]:focus,input[type=email]:focus,textarea:focus,select:focus{border-color:rgba(168,200,255,0.4);outline:2px solid rgba(168,200,255,0.2)}
+textarea{resize:vertical;min-height:95px;line-height:1.65}
+select{background-image:url('data:image/svg+xml;charset=utf-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22none%22 viewBox=%220 0 24 24%22 stroke=%22rgba(242,242,247,0.8)%22%3E%3Cpath stroke-linecap=%22round%22 stroke-linejoin=%22round%22 stroke-width=%222%22 d=%22M19 14l-7 7m0 0l-7-7m7 7V3%22 /%3E%3C/svg%3E');background-repeat:no-repeat;background-position:right 0.7rem center;background-size:1.2em;padding-right:2.5rem}
+select option{background:#13131a}
+.form-error{font-size:0.72rem;color:var(--error);margin-top:0.4rem;display:none}
+.form-error.show{display:block}
+.submit-btn{margin-top:0.6rem;background:var(--text);color:var(--bg);border:none;font-weight:500;padding:0.7rem 2.2rem;border-radius:40px;font-size:0.82rem;cursor:pointer;transition:all 0.2s}
+.submit-btn:hover{background:rgba(242,242,247,0.88)}
+.submit-btn:focus{outline:2px solid var(--accent);outline-offset:2px}
+#form-success{display:none;text-align:center;padding:2.8rem;color:rgba(242,242,247,0.5);font-size:0.9rem;letter-spacing:0.06em;line-height:2.2;animation:slideIn 0.3s ease-out}
+#form-success .check{font-size:2rem;display:block;margin-bottom:0.5rem;color:var(--text)}
+@keyframes slideIn{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
+footer{text-align:center;padding:3rem 0 1rem;font-size:0.68rem;color:var(--faint);letter-spacing:0.1em}
+@media(max-width:768px){
+  .stats-row{gap:2rem}
+  .stat-val{font-size:2rem}
+  #map-wrap{height:280px}
+}
+</style>
+</head>
+<body>
+<canvas id="stars"></canvas>
+<div class="page">
+  <header>
+    <p class="eyebrow">Historia de la humanidad</p>
+    <h1>Población<br><em>mundial</em></h1>
+    <p class="lead">Demografía humana a través de los años. Desde el año 200 d.C. hasta hoy.</p>
+  </header>
+
+  <div class="globe-section">
+    <div id="map-wrap">
+      <div id="map-tooltip-el" class="map-tooltip"></div>
+      
+      <div id="map-inner">
+        <svg id="map-svg-el" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2000 1001" width="2000" height="1001" role="img" aria-label="Mapa interactivo del mundo"></svg>
+      </div>
+      <div class="zoom-btns">
+        <button class="zoom-btn" id="btnZoomIn" title="Acercar" aria-label="Acercar mapa">
+          <svg viewBox="0 0 16 16"><line x1="8" y1="3" x2="8" y2="13"/><line x1="3" y1="8" x2="13" y2="8"/></svg>
+        </button>
+        <button class="zoom-btn" id="btnZoomOut" title="Alejar" aria-label="Alejar mapa">
+          <svg viewBox="0 0 16 16"><line x1="3" y1="8" x2="13" y2="8"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat">
+        <span class="stat-val" id="popDisplay">190M</span>
+        <span class="stat-label">Población</span>
+      </div>
+      <div class="divider"></div>
+      <div class="stat">
+        <span class="stat-val" id="yearStat">200</span>
+        <span class="stat-label">Año d.C.</span>
+        <div class="growth-badge" id="growthBadge">—</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <p class="card-label">Línea de tiempo</p>
+    <div class="year-display">Año <span id="yearBig">200</span> d.C.</div>
+    <div class="slider-wrapper">
+      <input type="range" id="timeSlider" min="0" max="1000" value="0" aria-label="Selector de año en la línea de tiempo">
+    </div>
+    <div class="marks"><span>200</span><span>500</span><span>900</span><span>1300</span><span>1600</span><span>1800</span><span>1900</span><span>1950</span><span>2000</span><span>2024</span></div>
+    <div class="controls">
+      <button class="primary" id="btnPlay" aria-label="Iniciar animación">Play</button>
+      <button id="btnPause" aria-label="Pausar animación">Pausar</button>
+      <button id="btnReset" aria-label="Reiniciar a año 200">Reiniciar</button>
+    </div>
+    <div class="speed-row">
+      <label for="speedSlider">Velocidad</label>
+      <div class="slider-wrapper" style="flex:1">
+        <input type="range" id="speedSlider" min="1" max="10" value="4" step="1" aria-label="Control de velocidad de animación">
+      </div>
+      <span id="speedVal">4×</span>
+    </div>
+    <div class="event-box">
+      <div class="event-year" id="event-year">200 d.C.</div>
+      <div class="event-text" id="event-text">Imperio Romano en su apogeo. Población global estable en torno a 190 millones.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <p class="card-label">Curva de crecimiento</p>
+    <div style="position:relative;height:210px">
+      <canvas id="chartCanvas"></canvas>
+    </div>
+  </div>
+
+  <div class="card">
+    <p class="card-label">Fuentes verificadas</p>
+    <div class="source-item"><strong>McEvedy & Jones (1978)</strong> — Atlas of World Population History.</div>
+    <div class="source-item"><strong>Naciones Unidas (2022)</strong> — World Population Prospects.</div>
+    <div class="source-item"><strong>Kremer, M. (1993)</strong> — Quarterly Journal of Economics.</div>
+    <div class="source-item"><strong>Maddison Project (2020)</strong> — Univ. de Groninga.</div>
+    <div class="source-item"><strong>Our World in Data (2024)</strong> — ourworldindata.org/world-population-growth</div>
+    <div class="source-item" style="border:none"><strong>Nota:</strong> Datos anteriores a 1800 con márgenes de ±10–20%.</div>
+  </div>
+
+  <div class="card">
+    <p class="card-label">Feedback & Bug Report</p>
+    
+    <div id="tab-feedback" role="tabpanel">
+      <div class="form-group"><label for="feedbackName">Nombre (opcional)</label><input type="text" id="feedbackName" placeholder="Anónimo"></div>
+      <div class="form-group"><label for="feedbackEmail">Email (opcional)</label><input type="email" id="feedbackEmail" placeholder="Para recibir respuesta"></div>
+      <div class="form-group"><label for="feedbackRating">Valoración</label>
+        <select id="feedbackRating"><option value="5">⭐⭐⭐⭐⭐  Excelente</option><option value="4">⭐⭐⭐⭐  Muy bueno</option><option value="3" selected>⭐⭐⭐  Regular</option><option value="2">⭐⭐  Mejorable</option><option value="1">⭐  Deficiente</option></select>
+      </div>
+      <div class="form-group"><label for="feedbackText">Comentarios</label><textarea id="feedbackText" placeholder="¿Qué datos agregarías? ¿Qué mejorarías?"></textarea><div class="form-error" id="feedbackError"></div></div>
+      <button class="submit-btn" onclick="submitForm('feedback')">Enviar Feedback</button>
+    </div>
+    
+    <div id="tab-bug" role="tabpanel" style="margin-top: 2.5rem; padding-top: 2rem; border-top: 1px solid var(--border);">
+      <div class="form-group"><label for="bugType">Tipo de problema</label>
+        <select id="bugType"><option value="">Selecciona un problema...</option><option value="data">Dato incorrecto</option><option value="visual">Error visual</option><option value="map">El mapa no carga</option><option value="animation">La animación no funciona</option><option value="performance">Problema de rendimiento</option><option value="other">Otro</option></select>
+        <div class="form-error" id="bugTypeError"></div>
+      </div>
+      <div class="form-group"><label for="bugYear">Año o período afectado</label><input type="text" id="bugYear" placeholder="ej. 1347 (Peste Negra)"></div>
+      <div class="form-group"><label for="bugDesc">Descripción</label><textarea id="bugDesc" placeholder="Describe qué ocurrió, en qué navegador…"></textarea><div class="form-error" id="bugDescError"></div></div>
+      <div class="form-group"><label for="bugSource">Fuente de referencia</label><input type="text" id="bugSource" placeholder="ej. ONU 2022, pág. 45"></div>
+      <button class="submit-btn" onclick="submitForm('bug')">Reportar Bug</button>
+    </div>
+    
+    <div id="form-success"><span class="check">✓</span>Recibido.<br>Gracias por contribuir.</div>
+  </div>
+  <footer>Población Mundial · Datos verificados · abraschil.github.io</footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+// ── STARS ──
+(function(){
+  const c=document.getElementById('stars'),ctx=c.getContext('2d');
+  let W,H,stars=[];
+  function resize(){W=c.width=innerWidth;H=c.height=innerHeight}
+  resize();window.addEventListener('resize',resize);
+  for(let i=0;i<180;i++)stars.push({x:Math.random(),y:Math.random(),r:Math.random()*0.8+0.2,o:Math.random()*0.4+0.1});
+  let lastFrame=0;
+  function draw(ts){
+    if(ts-lastFrame<16)return requestAnimationFrame(draw);
+    lastFrame=ts;
+    ctx.clearRect(0,0,W,H);
+    stars.forEach(s=>{ctx.beginPath();ctx.arc(s.x*W,s.y*H,s.r,0,Math.PI*2);ctx.fillStyle=`rgba(255,255,255,${s.o})`;ctx.fill();s.o+=(Math.random()-0.5)*0.004;s.o=Math.max(0.05,Math.min(0.55,s.o));});
+    requestAnimationFrame(draw);
+  }
+  requestAnimationFrame(draw);
+})();
+
+// ── DATA ──
+const DATA=[
+  {year:200,  pop:190,  event:"Imperio Romano en su apogeo. Población global estable en torno a 190 millones, concentrada en Asia y el Mediterráneo."},
+  {year:400,  pop:185,  event:"Declive del Imperio Romano de Occidente. Epidemias y migraciones reducen levemente la población global."},
+  {year:600,  pop:200,  event:"Expansión del Islam. La Plaga de Justiniano (541–549) devastó Europa y Asia Menor."},
+  {year:800,  pop:220,  event:"Imperio Carolingio. Expansión agrícola en Europa. Crecimiento moderado en China y la India."},
+  {year:1000, pop:265,  event:"Calentamiento medieval. Mejores cosechas en Europa. La población de China supera los 60 millones."},
+  {year:1200, pop:360,  event:"Apogeo medieval. Ciudades en crecimiento. China bajo la dinastía Song alcanza alta densidad urbana."},
+  {year:1350, pop:295,  event:"Peste Negra (1347–1351): mató entre 75 y 200 millones. La mayor catástrofe demográfica de la historia."},
+  {year:1500, pop:430,  event:"Recuperación post-Peste. El encuentro con América transforma el panorama global."},
+  {year:1600, pop:545,  event:"Intercambio colombino: enfermedades devastan poblaciones indígenas. Europa y Asia continúan creciendo."},
+  {year:1700, pop:610,  event:"Ilustración. China bajo la dinastía Qing supera los 150 millones de habitantes."},
+  {year:1800, pop:990,  event:"Revolución Industrial. Mejoras sanitarias y alimentarias disparan el crecimiento."},
+  {year:1850, pop:1200, event:"Expansión ferroviaria. Hambruna irlandesa (1845–1852). Población mundial supera 1.200 millones."},
+  {year:1900, pop:1600, event:"Era industrial plena. La esperanza de vida global sube a unos 35 años."},
+  {year:1920, pop:1860, event:"Post-Primera Guerra Mundial. La grive española (1918) mató entre 50 y 100 millones."},
+  {year:1950, pop:2536, event:"Post-Segunda Guerra Mundial. Baby boom. La ONU inicia registros sistemáticos."},
+  {year:1960, pop:3034, event:"Expansión de vacunas globales. La mortalidad infantil cae drásticamente."},
+  {year:1970, pop:3700, event:"Revolución Verde: nuevas variedades de trigo y arroz triplican la producción alimentaria."},
+  {year:1980, pop:4435, event:"Expansión urbana masiva. El VIH/SIDA comienza a registrarse globalmente."},
+  {year:1990, pop:5327, event:"Fin de la Guerra Fría. Globalización. China aplica la política del hijo único."},
+  {year:2000, pop:6143, event:"Nuevo milenio. Internet transforma la economía. La población duplica la de 1960 en 40 años."},
+  {year:2010, pop:6957, event:"La urbanización supera el 50% de la población mundial."},
+  {year:2020, pop:7795, event:"COVID-19: primera pandemia del siglo XXI. Exceso de mortalidad de 15–20 millones."},
+  {year:2024, pop:8100, event:"La ONU proyecta 9.700 millones hacia 2050 y estabilización en ~10.900 millones."},
+];
+function lerp(a,b,t){return a+(b-a)*t}
+function getAt(t){
+  const idx=t*(DATA.length-1);const i=Math.min(Math.floor(idx),DATA.length-2);const f=idx-i;
+  return{pop:lerp(DATA[i].pop,DATA[i+1].pop,f),year:Math.round(lerp(DATA[i].year,DATA[i+1].year,f)),
+    event:f<0.5?DATA[i].event:DATA[i+1].event,eventYear:f<0.5?DATA[i].year:DATA[i+1].year};
+}
+function fmtPop(p){return p<1000?Math.round(p)+'M':(p/1000).toFixed(2)+'B'}
+
+// ── MAPA ──
+const svg = document.getElementById('map-svg-el');
+const mapInner = document.getElementById('map-inner');
+const mapWrap = document.getElementById('map-wrap');
+
+const COUNTRY_NAMES = {
+  "004": "Afganistán", "008": "Albania", "012": "Argelia", "024": "Angola", "032": "Argentina",
+  "036": "Australia", "040": "Austria", "051": "Armenia", "016": "Samoa Americana", "028": "Antigua y Barbuda",
+  "044": "Bahamas", "048": "Bahréin", "050": "Bangladés", "052": "Barbados", "056": "Bélgica",
+  "060": "Bermudas", "064": "Bután", "068": "Bolivia", "070": "Bosnia y Herzegovina", "072": "Botsuana",
+  "076": "Brasil", "090": "Islas Salomón", "092": "Islas Vírgenes Británicas", "096": "Brunéi", "100": "Bulgaria",
+  "104": "Myanmar (Birmania)", "108": "Burundi", "112": "Bielorrusia", "116": "Camboya", "120": "Camerún",
+  "124": "Canadá", "132": "Cabo Verde", "136": "Islas Caimán", "140": "República Centroafricana", "144": "Sri Lanka",
+  "148": "Chad", "152": "Chile", "156": "China", "158": "Taiwán", "170": "Colombia", "174": "Comoras",
+  "175": "Mayotte", "178": "Congo", "180": "Rep. Dem. del Congo", "184": "Islas Cook", "188": "Costa Rica",
+  "191": "Croacia", "192": "Cuba", "196": "Chipre", "203": "República Checa", "204": "Benín", "208": "Dinamarca",
+  "212": "Dominica", "214": "República Dominicana", "218": "Ecuador", "222": "El Salvador", "226": "Guinea Ecuatorial",
+  "231": "Etiopía", "232": "Eritrea", "233": "Estonia", "234": "Islas Feroe", "238": "Islas Malvinas",
+  "242": "Fiyi", "246": "Finlandia", "250": "Francia", "254": "Guayana Francesa", "258": "Polinesia Francesa",
+  "260": "Tierras Australes Francesas", "262": "Yibuti", "266": "Gabón", "268": "Gambia", "270": "Gambia",
+  "276": "Alemania", "288": "Ghana", "292": "Gibraltar", "300": "Grecia", "304": "Groenlandia", "308": "Granada",
+  "312": "Guadalupe", "316": "Guam", "320": "Guatemala", "324": "Guinea", "328": "Guyana", "332": "Haití",
+  "336": "Ciudad del Vaticano", "340": "Honduras", "344": "Hong Kong", "348": "Hungría", "352": "Islandia",
+  "356": "India", "360": "Indonesia", "364": "Irán", "368": "Irak", "372": "Irlanda", "376": "Israel",
+  "380": "Italia", "384": "Costa de Marfil", "388": "Jamaica", "392": "Japón", "398": "Kazajistán",
+  "400": "Jordania", "404": "Kenia", "408": "Corea del Norte", "410": "Corea del Sur", "414": "Kuwait",
+  "417": "Kirguistán", "418": "Laos", "422": "Líbano", "426": "Lesoto", "428": "Letonia", "430": "Liberia",
+  "434": "Libia", "440": "Lituania", "442": "Luxemburgo", "446": "Macao", "450": "Madagascar", "454": "Malaui",
+  "458": "Malasia", "462": "Maldivas", "466": "Malí", "470": "Malta", "474": "Martinica", "478": "Mauritania",
+  "480": "Mauricio", "484": "México", "496": "Mongolia", "498": "Moldavia", "500": "Montserrat",
+  "504": "Marruecos", "508": "Mozambique", "512": "Omán", "516": "Namibia", "520": "Nauru", "524": "Nepal",
+  "528": "Países Bajos", "533": "Aruba", "540": "Nueva Caledonia", "554": "Nueva Zelanda", "558": "Nicaragua",
+  "562": "Níger", "566": "Nigeria", "570": "Niue", "574": "Isla Norfolk", "578": "Noruega", "583": "Micronesia",
+  "584": "Islas Marshall", "585": "Palaos", "586": "Pakistán", "591": "Panamá", "598": "Paraguay",
+  "600": "Perú", "604": "Perú", "608": "Filipinas", "612": "Islas Pitcairn", "616": "Polonia", "620": "Portugal",
+  "624": "Guinea-Bisáu", "626": "Timor Oriental", "630": "Puerto Rico", "634": "Catar", "638": "Reunión",
+  "642": "Rumania", "643": "Rusia", "646": "Ruanda", "652": "San Bartolomé", "654": "Santa Elena",
+  "659": "San Cristóbal y Nieves", "660": "Anguila", "662": "Santa Lucía", "663": "San Martín",
+  "666": "San Pedro y Miquelón", "670": "San Vicente y las Granadinas", "674": "San Marino",
+  "678": "Santo Tomé y Príncipe", "682": "Arabia Saudita", "686": "Senegal", "688": "Serbia",
+  "690": "Seychelles", "694": "Sierra Leona", "702": "Singapur", "703": "Eslovaquia", "704": "Vietnam",
+  "705": "Eslovenia", "706": "Somalia", "710": "Sudáfrica", "716": "Zimbabue", "724": "España",
+  "728": "Sudán del Sur", "729": "Sudán", "732": "Sahara Occidental", "740": "Surinam",
+  "744": "Svalbard y Jan Mayen", "748": "Suazilandia", "752": "Suecia", "756": "Suiza", "760": "Siria",
+  "762": "Tayikistán", "764": "Tailandia", "768": "Togo", "772": "Tokelau", "776": "Tonga",
+  "780": "Trinidad y Tobago", "784": "Emiratos Árabes Unidos", "788": "Túnez", "792": "Turquía",
+  "795": "Turkmenistán", "796": "Islas Turcas y Caicos", "798": "Tuvalu", "800": "Uganda", "804": "Ucrania",
+  "807": "Macedonia del Norte", "818": "Egipto", "826": "Reino Unido", "834": "Tanzania",
+  "840": "Estados Unidos", "850": "Islas Vírgenes de los EE.UU.", "854": "Burkina Faso", "858": "Uruguay",
+  "860": "Uzbekistán", "862": "Venezuela", "876": "Wallis y Futuna", "882": "Samoa", "887": "Yemen",
+  "894": "Zambia", "10]]": "Antártida", "010": "Antártida"
+};
+
+const bgRect = document.createElementNS('http://www.w3.org/2000/svg','rect');
+bgRect.setAttribute('width','2000');bgRect.setAttribute('height','1001');
+bgRect.setAttribute('fill','#0d1f38');
+svg.appendChild(bgRect);
+
+const gridG = document.createElementNS('http://www.w3.org/2000/svg','g');
+gridG.setAttribute('stroke','rgba(100,160,255,0.07)');gridG.setAttribute('stroke-width','0.6');
+[-60,-30,0,30,60].forEach(lat=>{
+  const y=(90-lat)/180*1001;
+  const l=document.createElementNS('http://www.w3.org/2000/svg','line');
+  l.setAttribute('x1','0');l.setAttribute('y1',y);l.setAttribute('x2','2000');l.setAttribute('y2',y);
+  gridG.appendChild(l);
+});
+for(let lon=-150;lon<=180;lon+=30){
+  const x=(lon+180)/360*2000;
+  const l=document.createElementNS('http://www.w3.org/2000/svg','line');
+  l.setAttribute('x1',x);l.setAttribute('y1','0');l.setAttribute('x2',x);l.setAttribute('y2','1001');
+  gridG.appendChild(l);
+}
+const eqLine=document.createElementNS('http://www.w3.org/2000/svg','line');
+eqLine.setAttribute('x1','0');eqLine.setAttribute('y1','500.5');eqLine.setAttribute('x2','2000');eqLine.setAttribute('y2','500.5');
+eqLine.setAttribute('stroke','rgba(100,160,255,0.15)');eqLine.setAttribute('stroke-width','0.8');
+gridG.appendChild(eqLine);
+svg.appendChild(gridG);
+
+const landsG = document.createElementNS('http://www.w3.org/2000/svg','g');
+landsG.setAttribute('fill','#3a6228');
+landsG.setAttribute('stroke','#2a4d1e');
+landsG.setAttribute('stroke-width','0.4');
+svg.appendChild(landsG);
+
+function geoToPath(geometry) {
+  function ringToD(ring) {
+    let prevX = null;
+    let dSegments = [];
+    let currentSegment = [];
+
+    for (let i = 0; i < ring.length; i++) {
+      const pt = ring[i];
+      const x = (pt[0] + 180) / 360 * 2000;
+      const y = (90 - pt[1]) / 180 * 1001;
+
+      if (prevX !== null && Math.abs(x - prevX) > 1000) {
+        if (currentSegment.length > 0) {
+          dSegments.push(currentSegment.join('') + 'Z');
+          currentSegment = [];
+        }
+      }
+
+      currentSegment.push((currentSegment.length === 0 ? 'M' : 'L') + x.toFixed(2) + ' ' + y.toFixed(2));
+      prevX = x;
+    }
+
+    if (currentSegment.length > 0) {
+      dSegments.push(currentSegment.join('') + 'Z');
+    }
+
+    return dSegments.join(' ');
+  }
+
+  if (geometry.type === 'Polygon') {
+    return geometry.coordinates.map(ringToD).join(' ');
+  } else if (geometry.type === 'MultiPolygon') {
+    return geometry.coordinates.map(poly => poly.map(ringToD).join(' ')).join(' ');
+  }
+  return '';
+}
+
+function loadMap(){
+  const tooltip = document.getElementById('map-tooltip-el');
+
+  fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json')
+    .then(r=>{if(!r.ok)throw new Error(`HTTP ${r.status}`);return r.json()})
+    .then(world=>{
+      const s=document.createElement('script');
+      s.src='https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js';
+      s.onerror=()=>showMapError();
+      s.onload=()=>{
+        try{
+          const countries=topojson.feature(world,world.objects.countries);
+          countries.features.forEach(f=>{
+            const d=geoToPath(f.geometry);
+            if(!d)return;
+            const path=document.createElementNS('http://www.w3.org/2000/svg','path');
+            path.setAttribute('d',d);
+            
+            let countryId = String(f.id);
+            if (countryId.length === 1) countryId = "00" + countryId;
+            else if (countryId.length === 2) countryId = "0" + countryId;
+
+            const countryName = COUNTRY_NAMES[countryId] || `País (ID: ${countryId})`;
+
+            path.addEventListener('mouseenter', () => {
+              tooltip.textContent = countryName;
+              tooltip.classList.add('show');
+            });
+
+            path.addEventListener('mousemove', (e) => {
+              const rect = mapWrap.getBoundingClientRect();
+              const x = e.clientX - rect.left;
+              const y = e.clientY - rect.top;
+              
+              tooltip.style.left = `${x}px`;
+              tooltip.style.top = `${y}px`;
+            });
+
+            path.addEventListener('mouseleave', () => {
+              tooltip.classList.remove('show');
+            });
+
+            landsG.appendChild(path);
+          });
+          resetView();
+        }catch(e){
+          console.error('Error procesando mapa:',e);
+          showMapError();
+        }
+      };
+      document.head.appendChild(s);
+    })
+    .catch(err=>{
+      console.error('Error cargando mapa:',err);
+      showMapError();
+    });
+}
+function showMapError(){
+  const t=document.createElementNS('http://www.w3.org/2000/svg','text');
+  t.setAttribute('x','1000');t.setAttribute('y','500');t.setAttribute('text-anchor','middle');
+  t.setAttribute('fill','rgba(242,242,247,0.3)');t.setAttribute('font-size','18');
+  t.textContent='Mapa no disponible';
+  svg.appendChild(t);
+}
+loadMap();
+
+let zoom=1.05, panX=1000, panY=500;
+const ZOOM_MIN=1, ZOOM_MAX=8, ZOOM_STEP=1.6;
+let isPanning=false, panStartX=0, panStartY=0, panStartPanX=0, panStartPanY=0;
+
+function applyZoom(){
+  const cW=mapInner.offsetWidth||680;
+  const cH=mapInner.offsetHeight||340;
+  
+  const baseScale=Math.max(cW/2000, cH/1001);
+  const s=baseScale*zoom;
+
+  const halfW = (cW / 2) / s;
+  const halfH = (cH / 2) / s;
+
+  const minX = halfW;
+  const maxX = 2000 - halfW;
+  const minY = halfH;
+  const maxY = 1001 - halfH;
+
+  if (maxX < minX) panX = 1000;
+  else panX = Math.max(minX, Math.min(maxX, panX));
+
+  if (maxY < minY) panY = 500;
+  else panY = Math.max(minY, Math.min(maxY, panY));
+
+  const tx=cW/2 - panX*s;
+  const ty=cH/2 - panY*s;
+
+  svg.style.transform=`translate(${tx}px,${ty}px) scale(${s})`;
+  svg.style.transition=isPanning?'none':'transform 0.18s cubic-bezier(.4,0,.2,1)';
+}
+
+function resetView(){
+  zoom=1.05; panX=1000; panY=500;
+  applyZoom();
+}
+window.addEventListener('resize', applyZoom);
+
+document.getElementById('btnZoomIn').addEventListener('click',()=>{
+  zoom=Math.min(ZOOM_MAX,zoom*ZOOM_STEP);applyZoom();
+});
+document.getElementById('btnZoomOut').addEventListener('click',()=>{
+  zoom=Math.max(ZOOM_MIN,zoom/ZOOM_STEP);
+  if(zoom<=1)resetView(); else applyZoom();
+});
+
+mapWrap.addEventListener('mousedown',startPan);
+mapWrap.addEventListener('touchstart',startPan);
+document.addEventListener('mousemove',doPan);
+document.addEventListener('touchmove',doPan,{passive:false});
+document.addEventListener('mouseup',endPan);
+document.addEventListener('touchend',endPan);
+
+function startPan(e){
+  if(e.button===2||e.touches?.length>1)return;
+  isPanning=true;
+  mapWrap.classList.add('panning');
+  const pt=e.touches?e.touches[0]:e;
+  panStartX=pt.clientX;
+  panStartY=pt.clientY;
+  panStartPanX=panX;
+  panStartPanY=panY;
+}
+function doPan(e){
+  if(!isPanning)return;
+  if(e.touches)e.preventDefault();
+  const pt=e.touches?e.touches[0]:e;
+  const dx=pt.clientX-panStartX;
+  const dy=pt.clientY-panStartY;
+  
+  const cW=mapInner.offsetWidth||680;
+  const cH=mapInner.offsetHeight||340;
+  const baseScale=Math.max(cW/2000, cH/1001);
+  const s=baseScale*zoom;
+  
+  panX=panStartPanX-dx/s;
+  panY=panStartPanY-dy/s;
+  applyZoom();
+}
+function endPan(){
+  isPanning=false;
+  mapWrap.classList.remove('panning');
+}
+
+let t=0,playing=false,speed=4,lastTs=null,prevPop=190;
+const TOTAL=60000;
+const slider=document.getElementById('timeSlider');
+const speedSl=document.getElementById('speedSlider');
+
+const chartPts=DATA.map(d=>({x:d.year,y:d.pop}));
+let myChart;
+function initChart(){
+  const ctx=document.getElementById('chartCanvas').getContext('2d');
+  myChart=new Chart(ctx,{
+    type:'line',
+    data:{datasets:[{data:chartPts,borderColor:'rgba(168,200,255,0.55)',backgroundColor:'rgba(168,200,255,0.04)',pointBackgroundColor:'rgba(168,200,255,0.75)',pointRadius:2.5,tension:0.4,fill:true,parsing:{xAxisKey:'x',yAxisKey:'y'}}]},
+    options:{responsive:true,maintainAspectRatio:false,animation:{duration:0},
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          enabled: function() { return !playing; },
+          callbacks:{label:c=>fmtPop(c.raw.y),title:c=>`Año ${c[0].raw.x}`}
+        }
+      },
+      scales:{
+        x:{type:'linear',ticks:{color:'rgba(242,242,247,0.32)',font:{family:'DM Sans',size:10}},grid:{color:'rgba(255,255,255,0.04)'}},
+        y:{ticks:{color:'rgba(242,242,247,0.32)',font:{family:'DM Sans',size:10},callback:v=>v>=1000?(v/1000).toFixed(1)+'B':v+'M'},grid:{color:'rgba(255,255,255,0.04)'}}
+      }
+    }
+  });
+  Chart.register({id:'marker',afterDraw(chart,_,opts){
+    if(!opts.year)return;
+    const{ctx,scales:{x,y}}=chart;const px=x.getPixelForValue(opts.year);
+    ctx.save();ctx.strokeStyle='rgba(245,201,138,0.45)';ctx.lineWidth=1;ctx.setLineDash([3,4]);
+    ctx.beginPath();ctx.moveTo(px,y.top);ctx.lineTo(px,y.bottom);ctx.stroke();ctx.restore();
+  }});
+  myChart.options.plugins.marker={year:200};
+}
+window.addEventListener('load',initChart);
+if(document.readyState==='complete')initChart();
+
+function updateUI(t){
+  const d=getAt(t);
+  document.getElementById('popDisplay').textContent=fmtPop(d.pop);
+  document.getElementById('yearStat').textContent=d.year;
+  document.getElementById('yearBig').textContent=d.year;
+  const delta=d.pop-prevPop;
+  document.getElementById('growthBadge').textContent=delta>=0?'+'+fmtPop(Math.abs(delta)):'-'+fmtPop(Math.abs(delta));
+  prevPop=d.pop;
+  document.getElementById('event-text').textContent=d.event;
+  document.getElementById('event-year').textContent=d.eventYear+' d.C.';
+  slider.value=t*1000;slider.style.setProperty('--pct',(t*100)+'%');
+  if(myChart){
+    myChart.options.plugins.marker.year=d.year;
+    if (playing && myChart.tooltip) {
+      myChart.tooltip.setActiveElements([], {x: 0, y: 0});
+    }
+    myChart.update('none');
+  }
+}
+function frame(ts){
+  if(lastTs===null)lastTs=ts;
+  const dt=ts-lastTs;lastTs=ts;
+  if(playing){
+    t+=dt/TOTAL*speed;
+    if(t>=1){t=1;playing=false;document.getElementById('btnPlay').classList.remove('primary')}
+    updateUI(t);
+  }
+  requestAnimationFrame(frame);
+}
+updateUI(0);
+requestAnimationFrame(frame);
+
+document.getElementById('btnPlay').addEventListener('click',function(){
+  if(t>=1)t=0;playing=true;lastTs=null;
+  this.classList.add('primary');document.getElementById('btnPause').classList.remove('primary');
+});
+document.getElementById('btnPause').addEventListener('click',function(){
+  playing=false;this.classList.add('primary');document.getElementById('btnPlay').classList.remove('primary');
+  if(myChart) myChart.update('none');
+});
+document.getElementById('btnReset').addEventListener('click',function(){
+  t=0;playing=false;lastTs=null;document.getElementById('btnPlay').classList.remove('primary');updateUI(0);
+});
+slider.addEventListener('input',function(){
+  t=this.value/1000;this.style.setProperty('--pct',(t*100)+'%');updateUI(t);
+});
+speedSl.addEventListener('change',function(){
+  speed=parseInt(this.value);document.getElementById('speedVal').textContent=speed+'×';
+});
+
+// Esta función se mantiene vacía para no romper llamadas visuales si existieran
+function switchTab(tab){
+  document.querySelectorAll('.form-error').forEach(e=>e.classList.remove('show'));
+}
+
+function validateForm(formType){
+  const errors={};
+  if(formType==='feedback'){
+    const text=document.getElementById('feedbackText').value.trim();
+    if(!text){
+      errors.feedbackText='Por favor, escribe algún comentario';
+    }
+  }else if(formType==='bug'){
+    const type=document.getElementById('bugType').value;
+    const desc=document.getElementById('bugDesc').value.trim();
+    if(!type){
+      errors.bugType='Selecciona un tipo de problema';
+    }
+    if(!desc){
+      errors.bugDesc='Describe el problema que encontraste';
+    }
+  }
+  return errors;
+}
+
+function showErrors(errors){
+  document.querySelectorAll('.form-error').forEach(e=>e.classList.remove('show'));
+  Object.keys(errors).forEach(key=>{
+    const el=document.getElementById(key+'Error');
+    if(el){
+      el.textContent=errors[key];
+      el.classList.add('show');
+    }
+  });
+}
+
+function submitForm(formType){
+  const errors=validateForm(formType);
+  if(Object.keys(errors).length>0){
+    showErrors(errors);
+    return;
+  }
+  
+  const data={type:formType};
+  if(formType==='feedback'){
+    data.name=document.getElementById('feedbackName').value||'Anónimo';
+    data.email=document.getElementById('feedbackEmail').value||'';
+    data.rating=document.getElementById('feedbackRating').value;
+    data.text=document.getElementById('feedbackText').value;
+  }else if(formType==='bug'){
+    data.bugType=document.getElementById('bugType').value;
+    data.year=document.getElementById('bugYear').value||'';
+    data.description=document.getElementById('bugDesc').value;
+    data.source=document.getElementById('bugSource').value||'';
+  }
+
+  // ─── CONFIGURACIÓN DE ENVÍO DIRECTA DE TU FORMSUBMIT ───
+  const tuCorreo = "abraschilgutierrez@gmail.com"; 
+
+  const formData = new FormData();
+  formData.append('_subject', `Nuevo ${formType.toUpperCase()} - Población Mundial`);
+  formData.append('_captcha', 'false');
+  
+  Object.keys(data).forEach(key => {
+    formData.append(key, data[key]);
+  });
+
+  // Ocultamos los bloques temporalmente solo durante el proceso de envío
+  document.getElementById('tab-feedback').style.display='none';
+  document.getElementById('tab-bug').style.display='none';
+  
+  const successEl = document.getElementById('form-success');
+  successEl.innerHTML = '<span class="check">⏳</span>Enviando reporte...';
+  successEl.style.display='block';
+
+  // LLAMADA AJAX DIRECTA DE TU FORMSUBMIT
+  fetch(`https://formsubmit.co/ajax/${tuCorreo}`, {
+    method: "POST",
+    body: formData,
+    headers: { 'Accept': 'application/json' }
+  })
+  .then(response => {
+    if (!response.ok) throw new Error('Error de red o servidor');
+    return response.json();
+  })
+  .then(resData => {
+    successEl.innerHTML = '<span class="check">✓</span>¡Recibido!<br>Gracias por contribuir.';
+    console.log('Enviado de forma exitosa:', resData);
+    
+    setTimeout(()=>{
+      // Reseteo limpio de campos según el tipo enviado
+      if(formType==='feedback'){
+        document.getElementById('feedbackName').value='';
+        document.getElementById('feedbackEmail').value='';
+        document.getElementById('feedbackText').value='';
+      } else {
+        document.getElementById('bugType').value='';
+        document.getElementById('bugYear').value='';
+        document.getElementById('bugDesc').value='';
+        document.getElementById('bugSource').value='';
+      }
+      
+      // Restauramos la visibilidad de ambas secciones una vez enviado el formulario
+      document.getElementById('tab-feedback').style.display='';
+      document.getElementById('tab-bug').style.display='';
+      successEl.style.display='none';
+    },3000);
+  })
+  .catch(error => {
+    successEl.innerHTML = '<span class="check" style="color:var(--error)">✕</span>Error al enviar.<br>Inténtalo más tarde.';
+    console.error('Error durante el fetch:', error);
+    
+    setTimeout(()=>{
+      // Si falla, restauramos la vista para permitir reintentos sin alterar el flujo libre de botones
+      document.getElementById('tab-feedback').style.display='';
+      document.getElementById('tab-bug').style.display='';
+      successEl.style.display='none';
+    },4000);
+  });
+}
+
+document.querySelectorAll('input[type=text], input[type=email], textarea, select').forEach(el=>{
+  el.addEventListener('input',()=>{
+    const err=el.id+'Error';
+    const errEl=document.getElementById(err);
+    if(errEl)errEl.classList.remove('show');
+  });
+});
+</script>
+</body>
+</html>
