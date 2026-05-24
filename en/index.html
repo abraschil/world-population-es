@@ -683,7 +683,7 @@ function showErrors(errors){
   });
 }
 
-function submitForm(formType){
+async function submitForm(formType){
   const errors=validateForm(formType);
   if(Object.keys(errors).length>0){
     showErrors(errors);
@@ -756,7 +756,10 @@ function submitForm(formType){
     },3000);
   })
   .catch(error => {
-    successEl.innerHTML = '<span class="check" style="color:var(--error)">✕</span>Error sending.<br>Please try again later.';
+    const msg = (error instanceof TypeError)
+      ? 'Service unavailable.<br>Please try again later.'
+      : 'Error sending.<br>Please try again later.';
+    successEl.innerHTML = `<span class="check" style="color:var(--error)">✕</span>${msg}`;
     console.error('Error durante el fetch:', error);
     
     setTimeout(()=>{
