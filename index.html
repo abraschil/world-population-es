@@ -234,15 +234,6 @@ footer{text-align:center;padding:3rem 0 1rem;font-size:0.68rem;color:var(--faint
   </div>
   <footer>Población Mundial · Datos verificados · abraschil.github.io</footer>
 
-  <!-- ACTIVACIÓN FORMSUBMIT — eliminar tras confirmar el email -->
-  <div style="padding:2rem 0;text-align:center" id="activate-formsubmit">
-    <form action="https://formsubmit.co/abraschilgutierrez@gmail.com" method="POST">
-      <input type="hidden" name="activacion" value="true">
-      <button type="submit" style="background:#a8c8ff;color:#0a0a0f;border:none;padding:0.8rem 2rem;border-radius:40px;font-size:1rem;cursor:pointer;font-weight:600">
-        ✉️ Activar FormSubmit
-      </button>
-    </form>
-  </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
@@ -693,7 +684,7 @@ function showErrors(errors){
   });
 }
 
-function submitForm(formType){
+async function submitForm(formType){
   const errors=validateForm(formType);
   if(Object.keys(errors).length>0){
     showErrors(errors);
@@ -766,7 +757,10 @@ function submitForm(formType){
     },3000);
   })
   .catch(error => {
-    successEl.innerHTML = '<span class="check" style="color:var(--error)">✕</span>Error al enviar.<br>Inténtalo más tarde.';
+    const msg = (error instanceof TypeError)
+      ? 'Servicio de envío no disponible.<br>Inténtalo más tarde.'
+      : 'Error al enviar.<br>Inténtalo más tarde.';
+    successEl.innerHTML = `<span class="check" style="color:var(--error)">✕</span>${msg}`;
     console.error('Error durante el fetch:', error);
     
     setTimeout(()=>{
